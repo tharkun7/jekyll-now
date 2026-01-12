@@ -19,7 +19,10 @@ jobs:
           python-version: '3.12'
           
       - name: Install Dependencies
-        run: pip install google-generativeai requests pymed
+    
+        run: pip install google-generativeai google-genai requests pymed
+
+       
         
       - name: Run Bio-Strategist Script
         env:
