@@ -1,12 +1,14 @@
 import os
 import requests
-import google.generativeai as genai
+import google.generativeai as genai # We will keep this for now to avoid complexity
 from pymed import PubMed
 from datetime import datetime
 
 # --- SETUP ---
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-1.5-flash')
+
+# FIX: Use 'gemini-2.0-flash' which is the stable 2026 standard
+model = genai.GenerativeModel('gemini-2.0-flash')
 
 def get_poultry_research():
     pubmed = PubMed(tool="BioStrategist", email="your@email.com")
