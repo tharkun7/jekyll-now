@@ -11,7 +11,7 @@ model = genai.GenerativeModel('gemini-1.5-flash')
 def get_poultry_research():
     pubmed = PubMed(tool="BioStrategist", email="your@email.com")
     # Search for poultry physiology papers from the current year
-    query = f"poultry physiology[Title/Abstract] AND {datetime.now().year}[Date - Publication]"
+    query = f"chicken[Title/Abstract] AND {datetime.now().year}[Date - Publication]"
     results = list(pubmed.query(query, max_results=1))
     return results[0] if results else None
 
