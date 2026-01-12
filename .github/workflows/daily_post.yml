@@ -1,22 +1,22 @@
 name: Daily Farm Science
 on:
   schedule:
-    - cron: '0 8 * * *'  # Runs at 8 AM UTC
-  workflow_dispatch:      # Allows you to click a button to run it manually
+    - cron: '0 8 * * *'  # 8 AM Daily
+  workflow_dispatch:      # Allows manual trigger
 
 jobs:
   auto-post:
     runs-on: ubuntu-latest
     permissions:
-      contents: write     # Required to allow the bot to save the post to your repo
+      contents: write     # Allows the bot to save your blog posts
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
       
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.12'
           
       - name: Install Dependencies
         run: pip install google-generativeai requests pymed
@@ -32,5 +32,4 @@ jobs:
           git config --global user.name "Bio-Strategist-Bot"
           git config --global user.email "bot@farm.com"
           git add _posts/*.md
-          # Only commit if there are changes
           git diff --quiet && git diff --staged --quiet || (git commit -m "Automated Research Post: $(date)" && git push)
