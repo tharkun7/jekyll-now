@@ -1,92 +1,107 @@
 import os
 import random
 import requests
+import time
 from google import genai
 from pymed import PubMed
 from datetime import datetime
 
 # --- CONFIGURATION ---
 # Using the modern 2026 GenAI Client
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-MODEL_ID = "gemini-1.5-flash" 
+try:
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    MODEL_ID = "gemini-2.0-flash"
+except Exception as e:
+    print(f"Configuration Error: {e}")
 
 def get_research():
-    """Fetches a paper: 50% chance of a NEW study, 50% chance of a CLASSIC study."""
+    """Fetches a paper with 3-attempt retry logic for network stability."""
     pubmed = PubMed(tool="BioStrategist", email="your@email.com")
     is_classic = random.choice([True, False])
     
+    # Define query based on strategy
     if is_classic:
         query = "poultry physiology[Title] AND (1990[PDAT] : 2012[PDAT])"
         source_label = "Classic Scientific Foundation"
     else:
         query = f"poultry physiology[Title/Abstract] AND {datetime.now().year}[Date - Publication]"
         source_label = "Modern Research Digest"
-        
-    results = list(pubmed.query(query, max_results=1))
-    if results:
-        return results[0], source_label
+
+    # Network Retry Loop
+    for attempt in range(3):
+        try:
+            results = list(pubmed.query(query, max_results=1))
+            if results:
+                return results[0], source_label
+            return None, None
+        except Exception as e:
+            print(f"Attempt {attempt+1} failed: Network/PubMed unreachable. Retrying...")
+            time.sleep(10) # Wait 10 seconds between tries
     return None, None
 
 def get_image(query):
-    """Fetches a relevant scientific or farm image from Pexels API."""
+    """Fetches a relevant scientific or farm image."""
     headers = {"Authorization": os.getenv("PEXELS_API_KEY")}
     url = f"https://api.pexels.com/v1/search?query={query}&per_page=1"
     try:
-        res = requests.get(url, headers=headers).json()
+        res = requests.get(url, headers=headers, timeout=10).json()
         return res['photos'][0]['src']['large']
-    except Exception:
+    except:
         return "https://images.pexels.com/photos/1769279/pexels-photo-1769279.jpeg"
 
 def main():
-    # 1. Strategy Toggle: Research vs. Textbook Fundamentals
+    # 1. Decision Logic (Coin Flip)
     mode = random.choice(["research", "textbook"])
     
+    paper = None
     if mode == "research":
         paper, source_label = get_research()
-        if not paper: 
-            mode = "textbook" # Fallback if PubMed returns no results
-        else:
-            title = paper.title
-            prompt = f"""Act as a PhD Bio-Strategist. Summarize this {source_label} for our farm blog. 
-            Paper Title: {paper.title}
-            Abstract Body: {paper.abstract}
-            Focus on Scientific Discovery, Biological Mechanism, and Farm Application."""
-            image_query = "laboratory"
+        if not paper:
+            print("Fallback: PubMed Unreachable. Switching to Textbook mode.")
+            mode = "textbook"
 
-    if mode == "textbook":
+    # 2. Define Prompts based on Mode
+    if mode == "research" and paper:
+        title = paper.title
+        image_query = "poultry laboratory"
+        prompt = f"""Act as a PhD Bio-Strategist. Summarize this {source_label} for a farm blog. 
+        Title: {paper.title}
+        Abstract: {paper.abstract}
+        Structure: Discovery, Biological Mechanism, and Farm Application."""
+    else:
+        # Advanced Textbook Topics
         topics = [
             "Medullary Bone and Calcium Mobilization in High-Production Layers",
             "The Ovarian Hierarchy: Selection and Maturation of Follicles",
             "Avian Thermoregulation: Evaporative Cooling and Heat Stress Biology",
             "Gut-Associated Lymphoid Tissue (GALT) and Avian Immunity",
-            "Liver Metabolism: Lipogenesis and the Logistics of Yolk Formation",
-            "Gizzard Function and Mechanical Digestion Efficiency",
-            "The Endocrine Control of the Ovulatory Cycle"
+            "Liver Metabolism: Lipogenesis and Yolk Formation",
+            "Gizzard Function and Mechanical Digestion Efficiency"
         ]
         topic = random.choice(topics)
         title = f"Bio-Fundamentals: {topic}"
-        prompt = f"Act as a PhD Bio-Strategist. Provide a 5-paragraph summary of '{topic}' based on avian physiology textbooks. Focus on biological systems and hen health."
-        image_query = "anatomy diagram"
+        image_query = "chicken anatomy diagram"
+        prompt = f"Act as a PhD Bio-Strategist. Provide a 5-paragraph summary of '{topic}' based on avian physiology textbooks. Focus on biological systems and farm health."
 
-    # 2. Execute AI Synthesis (New 2026 Syntax)
-    response = client.models.generate_content(
-        model=MODEL_ID,
-        contents=prompt
-    )
-    blog_text = response.text
+    # 3. AI Generation with Rate-Limit Protection
+    try:
+        response = client.models.generate_content(model=MODEL_ID, contents=prompt)
+        blog_text = response.text
+    except Exception as e:
+        print(f"AI Generation failed: {e}")
+        return
 
-    # 3. Prepare Metadata & Filename
+    # 4. Save History (Logging)
     date_str = datetime.now().strftime("%Y-%m-%d")
+    log_entry = f"{date_str} | {mode.upper()} | {title}\n"
+    with open("posts_log.txt", "a") as log_file:
+        log_file.write(log_entry)
+
+    # 5. Create Jekyll Post
     clean_title = "".join(c for c in title if c.isalnum() or c.isspace()).replace(" ", "-").lower()[:50]
     filename = f"_posts/{date_str}-{clean_title}.md"
     img_url = get_image(image_query)
 
-    # 4. Create the Log Entry
-    log_entry = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | {mode.upper()} | {title}\n"
-    with open("posts_log.txt", "a") as log_file:
-        log_file.write(log_entry)
-
-    # 5. Construct the Jekyll File
     jekyll_content = f"""---
 layout: post
 title: "{title}"
@@ -103,7 +118,7 @@ category: {mode}
     with open(filename, "w", encoding="utf-8") as f:
         f.write(jekyll_content)
     
-    print(f"Published {mode} post: {title}")
+    print(f"Successfully published {mode} post: {title}")
 
 if __name__ == "__main__":
     main()
