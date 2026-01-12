@@ -10,7 +10,7 @@ from datetime import datetime
 # Using the modern 2026 GenAI Client
 try:
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    MODEL_ID = "gemini-2.0-flash"
+    MODEL_ID = "gemini-1.5-flash"
 except Exception as e:
     print(f"Configuration Error: {e}")
 
