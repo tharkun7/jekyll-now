@@ -8,7 +8,7 @@ from datetime import datetime
 # --- CONFIGURATION ---
 # Using the modern 2026 GenAI Client
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-MODEL_ID = "gemini-2.0-flash" 
+MODEL_ID = "gemini-1.5-flash" 
 
 def get_research():
     """Fetches a paper: 50% chance of a NEW study, 50% chance of a CLASSIC study."""
